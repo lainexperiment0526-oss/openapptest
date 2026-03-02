@@ -5,6 +5,8 @@ import { usePiNetwork } from '@/hooks/usePiNetwork';
 import { Header } from '@/components/Header';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import A2UService from '@/services/a2uService';
 import { ArrowLeft, Wallet, Loader2, CheckCircle, Gift } from 'lucide-react';
@@ -26,6 +28,7 @@ export default function TestnetPayout() {
   const [loadingPayouts, setLoadingPayouts] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [lastTxid, setLastTxid] = useState<string | null>(null);
+  const [amount, setAmount] = useState('1.00');
 
   useEffect(() => {
     if (user) loadPayouts();
@@ -69,18 +72,9 @@ export default function TestnetPayout() {
       return;
     }
 
-    // Check if user already received a payout in the last 24 hours
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { data: recentPayout } = await supabase
-      .from('withdrawal_requests')
-      .select('*')
-      .eq('developer_id', user.id)
-      .eq('memo', 'Testnet Payout')
-      .gte('created_at', twentyFourHoursAgo)
-      .single();
-
-    if (recentPayout) {
-      toast.error('You can only receive one testnet payout per 24 hours');
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      toast.error('Enter a valid amount greater than 0');
       return;
     }
 
@@ -91,10 +85,11 @@ export default function TestnetPayout() {
         .from('withdrawal_requests')
         .insert({
           developer_id: user.id,
-          amount: 0.01,
-          status: 'pending',
+          amount: parsedAmount,
+          status: 'completed', // Auto-complete without approval
           pi_wallet_address: piUser.uid, // Use user's UID as the recipient
           memo: 'Testnet Payout',
+          processed_at: new Date().toISOString(), // Auto-process immediately
         })
         .select()
         .single();
@@ -105,7 +100,7 @@ export default function TestnetPayout() {
       const result = await A2UService.createPayment({
         recipientUid: piUser.uid,
         recipientUsername: piUser.username,
-        amount: 0.01,
+        amount: parsedAmount,
         memo: 'Testnet Payout',
         metadata: {
           type: 'testnet_payout',
@@ -121,14 +116,12 @@ export default function TestnetPayout() {
       await supabase
         .from('withdrawal_requests')
         .update({
-          status: 'completed',
           txid: result.txid,
-          processed_at: new Date().toISOString(),
         })
         .eq('id', data.id);
 
       setLastTxid(result.txid || null);
-      toast.success('Testnet payout of 0.01 π received successfully!');
+      toast.success(`Testnet payout of ${parsedAmount} π received successfully!`);
       loadPayouts();
     } catch (err: any) {
       console.error('Payout error:', err);
@@ -167,7 +160,7 @@ export default function TestnetPayout() {
             Testnet Payouts
           </h1>
           <p className="text-muted-foreground text-lg">
-            This is for developer payouts testing (A2U). Only 0.01 π per click is allowed.
+            Request any amount of testnet Pi instantly. No limits, no approval required.
           </p>
         </div>
 
@@ -209,8 +202,26 @@ export default function TestnetPayout() {
         <div className="rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 p-8 mb-8 text-center shadow-xl border border-blue-200">
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-6">
             <div className="text-white text-sm font-medium mb-2">Instant Payout</div>
-            <div className="text-white text-3xl font-bold mb-1">0.01 Test-Pi</div>
-            <div className="text-white/80 text-xs">One-click withdrawal</div>
+            <div className="text-white text-3xl font-bold mb-1">Custom Amount</div>
+            <div className="text-white/80 text-xs">No limits, instant approval</div>
+          </div>
+          
+          {/* Amount Input */}
+          <div className="mb-6">
+            <Label htmlFor="amount" className="text-white text-sm font-medium mb-2 block">
+              Amount (π)
+            </Label>
+            <Input
+              id="amount"
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="Enter amount"
+              className="bg-white/90 border-white/20 text-blue-900 placeholder:text-blue-400 text-center text-lg font-semibold"
+              disabled={processing || !isPiAuthenticated}
+            />
           </div>
           
           <Button
@@ -227,7 +238,7 @@ export default function TestnetPayout() {
             ) : (
               <span className="inline-flex items-center gap-2">
                 <Wallet className="h-5 w-5" />
-                Receive your 0.01 Testnet Pi
+                Receive {amount || '0.00'} Testnet Pi
               </span>
             )}
           </Button>
