@@ -34,6 +34,8 @@ import {
   Code2,
   Receipt,
   BookOpen,
+  Wallet,
+  Send,
 } from 'lucide-react';
 
 interface MenuItemProps {
@@ -94,6 +96,8 @@ export function MenuDrawer() {
           <MenuItem icon={<MessageSquare className="h-5 w-5" />} label="Feedback" href="/feedback" />
           <MenuItem icon={<BookOpen className="h-5 w-5" />} label="Blog" href="/blog" />
           {user && <MenuItem icon={<Receipt className="h-5 w-5" />} label="Purchases" href="/purchases" />}
+          {user && <MenuItem icon={<Wallet className="h-5 w-5" />} label="Pi Wallet" href="/wallet" />}
+          {user && <MenuItem icon={<Send className="h-5 w-5" />} label="A2U Payments" href="/a2u" />}
           {user && <MenuItem icon={<User className="h-5 w-5" />} label="Profile" href="/profile" />}
 
           <div className="border-t border-border mt-2 pt-3 space-y-1">
