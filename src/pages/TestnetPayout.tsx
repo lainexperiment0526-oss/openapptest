@@ -121,7 +121,12 @@ export default function TestnetPayout() {
         .eq('id', data.id);
 
       setLastTxid(result.txid || null);
-      toast.success(`Testnet payout of ${parsedAmount} π received successfully! Transaction: ${result.txid}`);
+      toast.success(
+        <div>
+          <div>Testnet payout of {parsedAmount} π received successfully!</div>
+          <div className="text-xs mt-1">Transaction: {result.txid}</div>
+        </div>
+      );
       loadPayouts();
     } catch (err: any) {
       console.error('Payout error:', err);
@@ -252,9 +257,19 @@ export default function TestnetPayout() {
               <p className="text-sm text-green-700 font-mono mb-2">
                 tx: {lastTxid}
               </p>
-              <p className="text-xs text-green-600">
-                ✅ Payment processed on Pi Network testnet
-              </p>
+              <div className="flex flex-col gap-2">
+                <a 
+                  href={`https://blockexplorer.pinet.app/tx/${lastTxid}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                >
+                  🔍 View on Pi Blockchain Explorer
+                </a>
+                <p className="text-xs text-green-600">
+                  ✅ Payment processed on Pi Network testnet
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -284,6 +299,16 @@ export default function TestnetPayout() {
                         {new Date(payout.created_at).toLocaleString()}
                         {payout.txid && ` | tx: ${payout.txid.slice(0, 16)}...`}
                       </p>
+                      {payout.txid && (
+                        <a 
+                          href={`https://blockexplorer.pinet.app/tx/${payout.txid}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:text-blue-800 underline flex items-center gap-1 mt-1"
+                        >
+                          🔍 View on Blockchain
+                        </a>
+                      )}
                     </div>
                   </div>
                   <span className={`text-xs font-medium px-2 py-1 rounded-full ${
