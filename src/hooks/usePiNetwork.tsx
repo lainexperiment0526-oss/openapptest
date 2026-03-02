@@ -34,6 +34,7 @@ interface PiUser {
   uid: string;
   username: string;
   accessToken: string;
+  wallet_address?: string;
 }
 
 interface PiContextType {
@@ -140,13 +141,14 @@ export function PiProvider({ children }: { children: ReactNode }) {
     try {
       setPiLoading(true);
       const auth = await window.Pi.authenticate(
-        ['payments', 'username'],
+        ['payments', 'username', 'wallet_address'],
         onIncompletePaymentFound
       );
       const user: PiUser = {
         uid: auth.user.uid,
         username: auth.user.username,
         accessToken: auth.accessToken,
+        wallet_address: (auth.user as any)?.wallet_address,
       };
       setPiUser(user);
       return user;
