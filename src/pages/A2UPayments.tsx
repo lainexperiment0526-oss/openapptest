@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { ArrowLeft, Send, Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
 
 interface A2UPayment {
   id: string;
@@ -25,7 +25,7 @@ interface A2UPayment {
 
 export default function A2UPayments() {
   const { user, loading } = useAuth();
-  const { piUser, isPiAuthenticated, authenticateWithPi } = usePiNetwork();
+  const { piUser, isPiAuthenticated, authenticateWithPi, forceReauthenticate } = usePiNetwork();
   const [payments, setPayments] = useState<A2UPayment[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [sending, setSending] = useState(false);
@@ -181,6 +181,35 @@ export default function A2UPayments() {
         <p className="text-sm text-muted-foreground mb-6">
           Send Pi directly to users (App-to-User). Payments are processed on the Pi blockchain.
         </p>
+
+        {/* Pi Authentication Status */}
+        {!isPiAuthenticated && (
+          <div className="rounded-2xl bg-yellow-50 border border-yellow-200 p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-yellow-600" />
+              <div>
+                <p className="text-sm font-medium text-yellow-800">Pi Network Authentication Required</p>
+                <p className="text-xs text-yellow-700">Please authenticate with Pi Network to use A2U payments.</p>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <Button 
+                onClick={() => authenticateWithPi()} 
+                className="bg-yellow-600 hover:bg-yellow-700"
+                size="sm"
+              >
+                Authenticate with Pi
+              </Button>
+              <Button 
+                onClick={() => forceReauthenticate()} 
+                variant="outline"
+                size="sm"
+              >
+                Force Re-authenticate
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Send Payment Form */}
         <div className="rounded-2xl bg-card p-6 border border-border mb-8">

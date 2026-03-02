@@ -186,11 +186,16 @@ export default function PiWallet() {
         </div>
 
         {/* Quick Links */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-4 mb-8">
           <Link to="/a2u" className="rounded-2xl bg-card p-4 border border-border text-center hover:border-primary transition-colors">
             <ArrowUpRight className="h-5 w-5 text-primary mx-auto mb-2" />
             <p className="font-medium text-foreground text-sm">Send Pi (A2U)</p>
             <p className="text-xs text-muted-foreground">App-to-User payments</p>
+          </Link>
+          <Link to="/a2u-withdrawal" className="rounded-2xl bg-card p-4 border border-border text-center hover:border-primary transition-colors">
+            <ArrowDownLeft className="h-5 w-5 text-primary mx-auto mb-2" />
+            <p className="font-medium text-foreground text-sm">Withdraw Pi</p>
+            <p className="text-xs text-muted-foreground">A2U withdrawals</p>
           </Link>
           <Link to="/purchases" className="rounded-2xl bg-card p-4 border border-border text-center hover:border-primary transition-colors">
             <CreditCard className="h-5 w-5 text-primary mx-auto mb-2" />

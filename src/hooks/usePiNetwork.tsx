@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 declare global {
   interface Window {
@@ -43,6 +44,7 @@ interface PiContextType {
   isPiAuthenticated: boolean;
   piLoading: boolean;
   authenticateWithPi: () => Promise<PiUser | null>;
+  forceReauthenticate: () => Promise<PiUser | null>;
   createPiPayment: (amount: number, memo: string, metadata?: Record<string, any>, callbacks?: {
     onPaymentApproved?: () => void;
     onPaymentCompleted?: () => void;
@@ -152,13 +154,34 @@ export function PiProvider({ children }: { children: ReactNode }) {
       };
       setPiUser(user);
       return user;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Pi authentication failed:', err);
+      // Check if it's a scope error
+      if (err?.message?.includes('missing_scope') || err?.message?.includes('wallet_address')) {
+        toast.error('Please clear your Pi browser cache and try again. The wallet_address scope is required.');
+      }
       return null;
     } finally {
       setPiLoading(false);
     }
   }, [onIncompletePaymentFound]);
+
+  const forceReauthenticate = useCallback(async (): Promise<PiUser | null> => {
+    // Clear current user and force re-authentication
+    setPiUser(null);
+    
+    // Clear any stored Pi auth data
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('pi_auth');
+      localStorage.removeItem('pi_user');
+    }
+    
+    // Wait a moment for cleanup
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Re-authenticate with full scopes
+    return await authenticateWithPi();
+  }, [authenticateWithPi]);
 
   const createPiPayment = useCallback(async (
     amount: number,
@@ -258,6 +281,7 @@ export function PiProvider({ children }: { children: ReactNode }) {
       isPiAuthenticated: !!piUser,
       piLoading,
       authenticateWithPi,
+      forceReauthenticate,
       createPiPayment,
       showPiAd,
       signOutPi,
