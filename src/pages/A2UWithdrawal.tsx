@@ -23,7 +23,7 @@ interface WithdrawalRequest {
 
 export default function A2UWithdrawal() {
   const { user, loading } = useAuth();
-  const { piUser, isPiAuthenticated, authenticateWithPi } = usePiNetwork();
+  const { piUser, isPiAuthenticated, authenticateWithPi, forceReauthenticate } = usePiNetwork();
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [loadingWithdrawals, setLoadingWithdrawals] = useState(true);
   const [withdrawing, setWithdrawing] = useState(false);
@@ -114,6 +114,17 @@ export default function A2UWithdrawal() {
 
       const withdrawData = await withdrawRes.json();
       if (!withdrawData.success) {
+        // Check for wallet_address scope error
+        if (withdrawData.error?.includes('missing_scope') || withdrawData.error?.includes('wallet_address')) {
+          toast.error('Wallet address scope required. Please re-authenticate with Pi Network.', {
+            duration: 5000,
+            action: {
+              label: 'Re-authenticate',
+              onClick: () => forceReauthenticate(),
+            },
+          });
+          return;
+        }
         throw new Error(withdrawData.error || 'Failed to process withdrawal');
       }
 
@@ -124,7 +135,18 @@ export default function A2UWithdrawal() {
       loadWithdrawals();
     } catch (err: any) {
       console.error('Withdrawal error:', err);
-      toast.error(err.message || 'Withdrawal failed');
+      // Check for wallet_address scope error in catch block
+      if (err.message?.includes('missing_scope') || err.message?.includes('wallet_address')) {
+        toast.error('Wallet address scope required. Please re-authenticate with Pi Network.', {
+          duration: 5000,
+          action: {
+            label: 'Re-authenticate',
+            onClick: () => forceReauthenticate(),
+          },
+        });
+      } else {
+        toast.error(err.message || 'Withdrawal failed');
+      }
     } finally {
       setWithdrawing(false);
     }

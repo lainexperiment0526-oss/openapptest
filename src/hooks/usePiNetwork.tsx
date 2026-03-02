@@ -135,6 +135,46 @@ export function PiProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const forceReauthenticate = useCallback(async (): Promise<PiUser | null> => {
+    // Clear current user and force re-authentication
+    setPiUser(null);
+    
+    // Clear any stored Pi auth data
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('pi_auth');
+      localStorage.removeItem('pi_user');
+    }
+    
+    // Wait a moment for cleanup
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Re-authenticate with full scopes
+    if (!window.Pi) {
+      console.warn('Pi SDK not available');
+      return null;
+    }
+    try {
+      setPiLoading(true);
+      const auth = await window.Pi.authenticate(
+        ['payments', 'username', 'wallet_address'],
+        onIncompletePaymentFound
+      );
+      const user: PiUser = {
+        uid: auth.user.uid,
+        username: auth.user.username,
+        accessToken: auth.accessToken,
+        wallet_address: (auth.user as any)?.wallet_address,
+      };
+      setPiUser(user);
+      return user;
+    } catch (err: any) {
+      console.error('Pi re-authentication failed:', err);
+      return null;
+    } finally {
+      setPiLoading(false);
+    }
+  }, [onIncompletePaymentFound]);
+
   const authenticateWithPi = useCallback(async (): Promise<PiUser | null> => {
     if (!window.Pi) {
       console.warn('Pi SDK not available');
@@ -158,30 +198,19 @@ export function PiProvider({ children }: { children: ReactNode }) {
       console.error('Pi authentication failed:', err);
       // Check if it's a scope error
       if (err?.message?.includes('missing_scope') || err?.message?.includes('wallet_address')) {
-        toast.error('Please clear your Pi browser cache and try again. The wallet_address scope is required.');
+        toast.error('Wallet address scope required. Please click "Force Re-authenticate" below.', {
+          duration: 5000,
+          action: {
+            label: 'Force Re-authenticate',
+            onClick: () => forceReauthenticate(),
+          },
+        });
       }
       return null;
     } finally {
       setPiLoading(false);
     }
-  }, [onIncompletePaymentFound]);
-
-  const forceReauthenticate = useCallback(async (): Promise<PiUser | null> => {
-    // Clear current user and force re-authentication
-    setPiUser(null);
-    
-    // Clear any stored Pi auth data
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem('pi_auth');
-      localStorage.removeItem('pi_user');
-    }
-    
-    // Wait a moment for cleanup
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Re-authenticate with full scopes
-    return await authenticateWithPi();
-  }, [authenticateWithPi]);
+  }, [onIncompletePaymentFound, forceReauthenticate]);
 
   const createPiPayment = useCallback(async (
     amount: number,

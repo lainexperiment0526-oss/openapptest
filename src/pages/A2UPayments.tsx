@@ -94,6 +94,17 @@ export default function A2UPayments() {
 
       const createData = await createRes.json();
       if (!createData.success) {
+        // Check for wallet_address scope error
+        if (createData.error?.includes('missing_scope') || createData.error?.includes('wallet_address')) {
+          toast.error('Wallet address scope required. Please re-authenticate with Pi Network.', {
+            duration: 5000,
+            action: {
+              label: 'Re-authenticate',
+              onClick: () => forceReauthenticate(),
+            },
+          });
+          return;
+        }
         throw new Error(createData.error || 'Failed to create payment');
       }
 
@@ -142,7 +153,18 @@ export default function A2UPayments() {
       loadPayments();
     } catch (err: any) {
       console.error('A2U payment error:', err);
-      toast.error(err.message || 'Payment failed');
+      // Check for wallet_address scope error in catch block
+      if (err.message?.includes('missing_scope') || err.message?.includes('wallet_address')) {
+        toast.error('Wallet address scope required. Please re-authenticate with Pi Network.', {
+          duration: 5000,
+          action: {
+            label: 'Re-authenticate',
+            onClick: () => forceReauthenticate(),
+          },
+        });
+      } else {
+        toast.error(err.message || 'Payment failed');
+      }
     } finally {
       setSending(false);
     }
