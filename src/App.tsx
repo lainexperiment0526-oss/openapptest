@@ -32,6 +32,8 @@ import AppPurchases from "./pages/AppPurchases";
 import Blog from "./pages/Blog";
 import BlogPostPage from "./pages/BlogPost";
 import AdminBlog from "./pages/AdminBlog";
+import A2UPayments from "./pages/A2UPayments";
+import PiWallet from "./pages/PiWallet";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -84,6 +86,8 @@ const App = () => {
                   <Route path="/blog" element={<Blog />} />
                   <Route path="/blog/:slug" element={<BlogPostPage />} />
                   <Route path="/admin/blog" element={<AdminBlog />} />
+                  <Route path="/a2u" element={<A2UPayments />} />
+                  <Route path="/wallet" element={<PiWallet />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 <Footer />

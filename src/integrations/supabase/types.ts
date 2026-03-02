@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      a2u_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          memo: string
+          metadata: Json | null
+          payment_id: string | null
+          recipient_pi_uid: string
+          recipient_username: string | null
+          sender_user_id: string
+          status: string
+          txid: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          memo?: string
+          metadata?: Json | null
+          payment_id?: string | null
+          recipient_pi_uid: string
+          recipient_username?: string | null
+          sender_user_id: string
+          status?: string
+          txid?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          memo?: string
+          metadata?: Json | null
+          payment_id?: string | null
+          recipient_pi_uid?: string
+          recipient_username?: string | null
+          sender_user_id?: string
+          status?: string
+          txid?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ad_campaign_events: {
         Row: {
           api_key_id: string | null

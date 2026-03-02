@@ -306,8 +306,8 @@ export default function SubmitApp() {
   };
 
   const handleSaveDraft = async () => {
-    if (!formData.name || !formData.website_url || !formData.category_id || formData.languages.length === 0) {
-      toast.error('Name, website URL, category, and at least one language are required to save draft');
+    if (!formData.name || !formData.website_url) {
+      toast.error('Name and website URL are required to save draft');
       return;
     }
     setDraftActionLoading('save');
@@ -359,8 +359,8 @@ export default function SubmitApp() {
   };
 
   const validateBeforePayment = () => {
-    if (!formData.name || !formData.website_url || !formData.category_id || formData.languages.length === 0) {
-      toast.error('Name, website URL, category, and at least one language are required');
+    if (!formData.name || !formData.website_url) {
+      toast.error('Name and website URL are required');
       return false;
     }
     if (formData.pricing_model === 'paid') {
@@ -449,8 +449,8 @@ export default function SubmitApp() {
 
   const submitApp = async () => {
     if (!user) return;
-    if (!formData.category_id || formData.languages.length === 0) {
-      toast.error('Please select a category and at least one language');
+    if (!formData.name || !formData.website_url) {
+      toast.error('Name and website URL are required');
       setStep('details');
       return;
     }
@@ -690,7 +690,7 @@ export default function SubmitApp() {
         <form onSubmit={(e) => { e.preventDefault(); handleProceedToPayment(); }} className="space-y-8">
           {/* App Icon */}
           <div className="space-y-2">
-            <Label>App Icon *</Label>
+            <Label>App Icon</Label>
             <div className="flex items-center gap-4">
               {logoFile && (
                 <div className="h-20 w-20 app-icon overflow-hidden bg-secondary">
@@ -709,7 +709,7 @@ export default function SubmitApp() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">App Name *</Label>
-              <Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="My Awesome App" required />
+              <Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="My Awesome App" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="tagline">Tagline</Label>
@@ -721,7 +721,7 @@ export default function SubmitApp() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="website_url">Website URL *</Label>
-              <Input id="website_url" type="url" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} placeholder="https://example.com" required />
+              <Input id="website_url" type="url" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} placeholder="https://example.com" />
             </div>
           </div>
 
@@ -751,12 +751,13 @@ export default function SubmitApp() {
             <h3 className="font-semibold text-foreground">App Details</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="category">Category *</Label>
-                <Select value={formData.category_id} onValueChange={(value) => setFormData({ ...formData, category_id: value })}>
+                <Label htmlFor="category">Category</Label>
+                <Select value={formData.category_id} onValueChange={(value) => setFormData({ ...formData, category_id: value === '__none__' ? '' : value })}>
                   <SelectTrigger disabled={categoriesLoading || !!categoriesError}>
                     <SelectValue placeholder={categoriesLoading ? "Loading categories..." : "Select category"} />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__none__">None</SelectItem>
                     {categoriesLoading ? (
                       <SelectItem value="loading" disabled>Loading categories...</SelectItem>
                     ) : orderedCategories.length === 0 ? (
