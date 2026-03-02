@@ -7,6 +7,9 @@ const walletPrivateSeed = Deno.env.get('PI_WALLET_PRIVATE_SEED') || "SDZCNRDROZQ
 
 const pi = new PiNetwork(apiKey, walletPrivateSeed);
 
+// Log initialization (without exposing secrets)
+console.log('Pi Network SDK initialized with API key and wallet seed');
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -26,40 +29,56 @@ serve(async (req) => {
         const { recipientUid, recipientUsername, amount, memo, metadata } = data;
         
         console.log(`Creating A2U payment: ${amount} π to ${recipientUid} (${recipientUsername})`);
+        console.log('Payment data:', { amount, memo, metadata, uid: recipientUid });
         
-        // Follow exact PaymentArgs structure from Pi Network docs
-        const paymentData = {
-          amount: amount,
-          memo: memo,
-          metadata: {
-            ...metadata,
-            recipientUsername: recipientUsername,
-            type: 'a2u_payment',
-            timestamp: new Date().toISOString()
-          },
-          uid: recipientUid
-        };
-        
-        const paymentId = await pi.createPayment(paymentData);
-        console.log(`Payment created: ${paymentId}`);
+        try {
+          // Follow exact PaymentArgs structure from Pi Network docs
+          const paymentData = {
+            amount: amount,
+            memo: memo,
+            metadata: {
+              ...metadata,
+              recipientUsername: recipientUsername,
+              type: 'a2u_payment',
+              timestamp: new Date().toISOString()
+            },
+            uid: recipientUid
+          };
+          
+          console.log('Creating payment with data:', paymentData);
+          const paymentId = await pi.createPayment(paymentData);
+          console.log(`Payment created: ${paymentId}`);
 
-        const txid = await pi.submitPayment(paymentId);
-        console.log(`Payment submitted: ${txid}`);
-        
-        const completedPayment = await pi.completePayment(paymentId, txid);
-        console.log(`Payment completed: ${paymentId}`, completedPayment);
+          console.log('Submitting payment to blockchain...');
+          const txid = await pi.submitPayment(paymentId);
+          console.log(`Payment submitted: ${txid}`);
+          
+          console.log('Completing payment...');
+          const completedPayment = await pi.completePayment(paymentId, txid);
+          console.log(`Payment completed: ${paymentId}`, completedPayment);
 
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            paymentId: paymentId, 
-            txid: txid,
-            payment: completedPayment,
-            blockchain: true,
-            network: completedPayment.network || 'Pi Testnet'
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              paymentId: paymentId, 
+              txid: txid,
+              payment: completedPayment,
+              blockchain: true,
+              network: completedPayment.network || 'Pi Testnet'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (paymentError: any) {
+          console.error('Payment creation failed:', paymentError);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: paymentError.message || 'Payment creation failed',
+              details: paymentError.toString()
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
 
       case 'createWithdrawal': {
