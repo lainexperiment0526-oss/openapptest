@@ -54,6 +54,76 @@ export default function A2UWithdrawal() {
     }
   };
 
+  const handleQuickWithdrawal = async () => {
+    if (!user) {
+      toast.error('Please sign in first');
+      return;
+    }
+
+    if (!isPiAuthenticated) {
+      toast.error('Please authenticate with Pi Network first');
+      authenticateWithPi();
+      return;
+    }
+
+    if (!piUser?.uid) {
+      toast.error('Pi Network user information not available');
+      return;
+    }
+
+    setWithdrawing(true);
+    try {
+      // Create withdrawal request in database first
+      const { data, error } = await supabase
+        .from('withdrawal_requests')
+        .insert({
+          developer_id: user.id,
+          amount: 0.01,
+          status: 'pending',
+          pi_wallet_address: piUser.uid,
+          memo: 'Quick A2U Withdrawal',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Process withdrawal using A2U service
+      const result = await A2UService.createPayment({
+        recipientUid: piUser.uid,
+        recipientUsername: piUser.username,
+        amount: 0.01,
+        memo: 'Quick A2U Withdrawal',
+        metadata: {
+          type: 'quick_withdrawal',
+          automatic: true
+        }
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to process withdrawal');
+      }
+
+      // Update withdrawal record with blockchain details
+      await supabase
+        .from('withdrawal_requests')
+        .update({
+          status: 'completed',
+          txid: result.txid,
+          processed_at: new Date().toISOString(),
+        })
+        .eq('id', data.id);
+
+      toast.success(`Quick withdrawal of 0.01 Pi completed successfully!`);
+      loadWithdrawals();
+    } catch (err: any) {
+      console.error('Quick withdrawal error:', err);
+      toast.error(err.message || 'Quick withdrawal failed');
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
   const handleWithdraw = async () => {
     if (!user) {
       toast.error('Please sign in first');
@@ -197,6 +267,34 @@ export default function A2UWithdrawal() {
             </Button>
           </div>
         )}
+
+        {/* Quick Withdrawal */}
+        <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 p-6 mb-8">
+          <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <Wallet className="h-5 w-5" /> Quick Withdrawal
+          </h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Get an instant 0.01 Pi withdrawal to your Pi wallet - no forms required!
+          </p>
+          <Button
+            onClick={handleQuickWithdrawal}
+            disabled={withdrawing || !isPiAuthenticated}
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            size="lg"
+          >
+            {withdrawing ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Processing Quick Withdrawal...
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                <Wallet className="h-4 w-4" />
+                Quick Withdraw 0.01 Pi
+              </span>
+            )}
+          </Button>
+        </div>
 
         {/* Withdrawal Form */}
         <div className="rounded-2xl bg-card p-6 border border-border mb-8">
