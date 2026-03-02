@@ -13,15 +13,15 @@ declare global {
         user: { uid: string; username: string };
         accessToken: string;
       }>;
-      createPayment: (
-        paymentData: { amount: number; memo: string; metadata: Record<string, any> },
-        callbacks: {
-          onReadyForServerApproval: (paymentId: string) => void;
-          onReadyForServerCompletion: (paymentId: string, txid: string) => void;
-          onCancel: (paymentId: string) => void;
-          onError: (error: any, payment?: any) => void;
-        }
-      ) => void;
+      createPayment: (payment: {
+        amount: string;
+        memo: string;
+        metadata?: Record<string, any>;
+      }) => {
+        on(event: 'ready' | 'approve' | 'complete' | 'cancel', callback: () => void): void;
+        on(event: 'error', callback: (error: any) => void): void;
+        start(): void;
+      };
       Ads: {
         requestAd: (adType: string) => Promise<void>;
         showAd: (adType: string) => Promise<void>;
@@ -229,66 +229,88 @@ export function PiProvider({ children }: { children: ReactNode }) {
       onPaymentError?: (error: any) => void;
     }
   ): Promise<void> => {
-    if (!window.Pi) throw new Error('Pi SDK not available');
+    if (!window.Pi?.createPayment) {
+      console.error('Pi SDK not available');
+      callbacks?.onPaymentError?.(new Error('Pi SDK not available'));
+      return;
+    }
 
-    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const { data: authData } = await supabase.auth.getUser();
-    const userId = authData.user?.id ?? null;
-    const enrichedMetadata = {
-      ...(metadata || {}),
-      buyer_pi_username: piUser?.username || null,
-      buyer_pi_uid: piUser?.uid || null,
-    };
+    // Check if user has wallet_address scope before attempting payment
+    if (!piUser?.wallet_address) {
+      toast.error('Wallet address scope required. Please re-authenticate to continue.', {
+        duration: 5000,
+        action: {
+          label: 'Re-authenticate Now',
+          onClick: () => forceReauthenticate(),
+        },
+      });
+      callbacks?.onPaymentError?.(new Error('Wallet address scope not authorized'));
+      return;
+    }
 
     return new Promise<void>((resolve, reject) => {
-      window.Pi.createPayment(
-        { amount, memo, metadata: enrichedMetadata },
-        {
-          onReadyForServerApproval: async (paymentId: string) => {
-            try {
-              await fetch(`${baseUrl}/functions/v1/pi-payment`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'approve', paymentId, userId, amount, memo, metadata: enrichedMetadata }),
-              });
-              callbacks?.onPaymentApproved?.();
-            } catch (err) {
-              console.error('Approval failed:', err);
-            }
-          },
-          onReadyForServerCompletion: async (paymentId: string, txid: string) => {
-            try {
-              await fetch(`${baseUrl}/functions/v1/pi-payment`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'complete', paymentId, txid, userId, amount, memo, metadata: enrichedMetadata }),
-              });
-              callbacks?.onPaymentCompleted?.();
-              resolve();
-            } catch (err) {
-              console.error('Completion failed:', err);
-              reject(err);
-            }
-          },
-          onCancel: (paymentId: string) => {
-            console.log('Payment cancelled:', paymentId);
-            fetch(`${baseUrl}/functions/v1/pi-payment`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'cancel', paymentId, userId }),
-            }).catch(console.error);
-            callbacks?.onPaymentCancelled?.();
-            reject(new Error('Payment cancelled'));
-          },
-          onError: (error: any) => {
-            console.error('Payment error:', error);
-            callbacks?.onPaymentError?.(error);
-            reject(error);
-          },
+      try {
+        const payment = window.Pi.createPayment({
+          amount: amount.toFixed(2),
+          memo,
+          metadata,
+        });
+
+        payment.on('ready', () => {
+          console.log('Payment ready');
+        });
+
+        payment.on('approve', () => {
+          console.log('Payment approved');
+          callbacks?.onPaymentApproved?.();
+        });
+
+        payment.on('complete', () => {
+          console.log('Payment completed');
+          callbacks?.onPaymentCompleted?.();
+          resolve();
+        });
+
+        payment.on('cancel', () => {
+          console.log('Payment cancelled');
+          callbacks?.onPaymentCancelled?.();
+          reject(new Error('Payment cancelled'));
+        });
+
+        payment.on('error', (error: any) => {
+          console.error('Payment error:', error);
+          // Check for wallet_address scope error
+          if (error?.message?.includes('missing_scope') || error?.message?.includes('wallet_address')) {
+            toast.error('Wallet address scope required. Please re-authenticate to continue.', {
+              duration: 5000,
+              action: {
+                label: 'Re-authenticate Now',
+                onClick: () => forceReauthenticate(),
+              },
+            });
+          }
+          callbacks?.onPaymentError?.(error);
+          reject(error);
+        });
+
+        payment.start();
+      } catch (error: any) {
+        console.error('Failed to create payment:', error);
+        // Check for wallet_address scope error
+        if (error?.message?.includes('missing_scope') || error?.message?.includes('wallet_address')) {
+          toast.error('Wallet address scope required. Please re-authenticate to continue.', {
+            duration: 5000,
+            action: {
+              label: 'Re-authenticate Now',
+              onClick: () => forceReauthenticate(),
+            },
+          });
         }
-      );
+        callbacks?.onPaymentError?.(error);
+        reject(error);
+      }
     });
-  }, [piUser]);
+  }, [piUser, forceReauthenticate]);
 
   const showPiAd = useCallback(async (adType: 'interstitial' | 'rewarded'): Promise<boolean> => {
     if (!window.Pi?.Ads) {
