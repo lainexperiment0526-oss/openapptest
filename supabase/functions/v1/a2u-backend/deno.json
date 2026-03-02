@@ -1,0 +1,118 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import PiNetwork from 'pi-backend';
+
+// DO NOT expose these values to public
+const apiKey = Deno.env.get('PI_API_KEY') || "ddrt2ie1cbbz3xlrjemeqc5ipmkt281jghocbs4oxsnx8k2bzi4jdswh2kh1k2r8";
+const walletPrivateSeed = Deno.env.get('PI_WALLET_PRIVATE_SEED') || "SDZCNRDROZQSM4UR6BGN7D3BOXBIZN2D2VQOV5I3IB23WVVC7IGAT2UM";
+
+const pi = new PiNetwork(apiKey, walletPrivateSeed);
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const { action, ...data } = await req.json();
+
+    switch (action) {
+      case 'createPayment': {
+        const { recipientUid, recipientUsername, amount, memo, metadata } = data;
+        
+        const paymentId = await pi.createPayment({
+          amount: amount,
+          memo: memo,
+          metadata: {
+            ...metadata,
+            recipientUsername: recipientUsername
+          },
+          uid: recipientUid
+        });
+
+        const txid = await pi.submitPayment(paymentId);
+        await pi.completePayment(paymentId, txid);
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            paymentId: paymentId, 
+            txid: txid 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'createWithdrawal': {
+        const { recipientAddress, amount, memo } = data;
+        
+        // Create a payment that will act as a withdrawal
+        const paymentId = await pi.createPayment({
+          amount: amount,
+          memo: memo,
+          metadata: {
+            type: 'withdrawal',
+            recipientAddress: recipientAddress
+          },
+          uid: 'withdrawal'
+        });
+
+        const txid = await pi.submitPayment(paymentId);
+        await pi.completePayment(paymentId, txid);
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            withdrawalId: paymentId, 
+            txid: txid 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'getPaymentStatus': {
+        const { paymentId } = data;
+        const payment = await pi.getPayment(paymentId);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            status: payment.status?.developer_completed ? 'completed' : 'pending',
+            txid: payment.transaction?.txid
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'cancelPayment': {
+        const { paymentId } = data;
+        await pi.cancelPayment(paymentId);
+        
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      default:
+        return new Response(
+          JSON.stringify({ error: 'Invalid action' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+    }
+  } catch (error) {
+    console.error('A2U API error:', error);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error.message || 'Internal server error' 
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
