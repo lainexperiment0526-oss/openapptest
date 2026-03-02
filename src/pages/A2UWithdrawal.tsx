@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import A2UService from '@/services/a2uService';
 import { ArrowLeft, Wallet, Loader2, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
 
 interface WithdrawalRequest {
@@ -83,9 +84,7 @@ export default function A2UWithdrawal() {
 
     setWithdrawing(true);
     try {
-      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-
-      // Create withdrawal request
+      // Create withdrawal request in database first
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .insert({
@@ -99,36 +98,28 @@ export default function A2UWithdrawal() {
 
       if (error) throw error;
 
-      // Process withdrawal using A2U payment system
-      const withdrawRes = await fetch(`${baseUrl}/functions/v1/a2u-withdrawal`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          withdrawalId: data.id,
-          amount: parsedAmount,
-          recipientAddress: walletAddress.trim(),
-          memo: memo.trim(),
-          developerId: user.id,
-        }),
+      // Process withdrawal using A2U service with PiNetwork backend
+      const result = await A2UService.createWithdrawal({
+        recipientAddress: walletAddress.trim(),
+        amount: parsedAmount,
+        memo: memo.trim(),
       });
 
-      const withdrawData = await withdrawRes.json();
-      if (!withdrawData.success) {
-        // Check for wallet_address scope error
-        if (withdrawData.error?.includes('missing_scope') || withdrawData.error?.includes('wallet_address')) {
-          toast.error('Wallet address scope required. Please re-authenticate with Pi Network.', {
-            duration: 5000,
-            action: {
-              label: 'Re-authenticate',
-              onClick: () => forceReauthenticate(),
-            },
-          });
-          return;
-        }
-        throw new Error(withdrawData.error || 'Failed to process withdrawal');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to process withdrawal');
       }
 
-      toast.success(`Withdrawal of ${parsedAmount} Pi submitted successfully!`);
+      // Update withdrawal record with blockchain details
+      await supabase
+        .from('withdrawal_requests')
+        .update({
+          status: 'completed',
+          txid: result.txid,
+          processed_at: new Date().toISOString(),
+        })
+        .eq('id', data.id);
+
+      toast.success(`Withdrawal of ${parsedAmount} Pi completed successfully!`);
       setAmount('');
       setWalletAddress('');
       setMemo('');

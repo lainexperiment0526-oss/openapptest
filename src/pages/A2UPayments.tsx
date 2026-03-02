@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import A2UService from '@/services/a2uService';
 import { ArrowLeft, Send, Loader2, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
 
 interface A2UPayment {
@@ -75,75 +76,47 @@ export default function A2UPayments() {
 
     setSending(true);
     try {
-      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-
-      // Step 1: Create the A2U payment
-      const createRes = await fetch(`${baseUrl}/functions/v1/a2u-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'create',
-          recipientUid: recipientUid.trim(),
-          recipientUsername: recipientUsername.trim() || null,
+      // Create payment record in database first
+      const { data, error } = await supabase
+        .from('a2u_payments')
+        .insert({
+          sender_user_id: user.id,
+          recipient_pi_uid: recipientUid.trim(),
+          recipient_username: recipientUsername.trim() || null,
           amount: parsedAmount,
           memo: memo.trim(),
-          metadata: { sender_username: piUser?.username || 'unknown' },
-          senderUserId: user.id,
-        }),
+          status: 'pending',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Process payment using A2U service with PiNetwork backend
+      const result = await A2UService.createPayment({
+        recipientUid: recipientUid.trim(),
+        recipientUsername: recipientUsername.trim() || undefined,
+        amount: parsedAmount,
+        memo: memo.trim(),
+        metadata: { 
+          sender_username: piUser?.username || 'unknown',
+          sender_user_id: user.id
+        },
       });
 
-      const createData = await createRes.json();
-      if (!createData.success) {
-        // Check for wallet_address scope error
-        if (createData.error?.includes('missing_scope') || createData.error?.includes('wallet_address')) {
-          toast.error('Wallet address scope required. Please re-authenticate with Pi Network.', {
-            duration: 5000,
-            action: {
-              label: 'Re-authenticate',
-              onClick: () => forceReauthenticate(),
-            },
-          });
-          return;
-        }
-        throw new Error(createData.error || 'Failed to create payment');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to process payment');
       }
 
-      const paymentId = createData.paymentId;
-      toast.info('Payment created. Submitting to blockchain...');
-
-      // Step 2: Submit to blockchain
-      const submitRes = await fetch(`${baseUrl}/functions/v1/a2u-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'submit',
-          paymentId,
-        }),
-      });
-
-      const submitData = await submitRes.json();
-      if (!submitData.success) {
-        throw new Error(submitData.error || 'Failed to submit payment');
-      }
-
-      const txid = submitData.txid;
-      toast.info('Transaction submitted. Completing payment...');
-
-      // Step 3: Complete the payment
-      const completeRes = await fetch(`${baseUrl}/functions/v1/a2u-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'complete',
-          paymentId,
-          txid,
-        }),
-      });
-
-      const completeData = await completeRes.json();
-      if (!completeData.success) {
-        throw new Error(completeData.error || 'Failed to complete payment');
-      }
+      // Update payment record with blockchain details
+      await supabase
+        .from('a2u_payments')
+        .update({
+          payment_id: result.paymentId,
+          txid: result.txid,
+          status: 'completed',
+        })
+        .eq('id', data.id);
 
       toast.success(`Successfully sent ${parsedAmount} Pi to ${recipientUsername || recipientUid}!`);
       setRecipientUid('');
