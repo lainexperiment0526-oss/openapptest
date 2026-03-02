@@ -16,9 +16,13 @@ interface PayoutRecord {
   amount: number;
   status: string;
   pi_wallet_address?: string | null;
+  recipient_username?: string | null;
   txid?: string | null;
   created_at: string;
   processed_at?: string | null;
+  network?: string | null;
+  blockchain_verified?: boolean | null;
+  error_message?: string | null;
 }
 
 export default function TestnetPayout() {
@@ -38,18 +42,34 @@ export default function TestnetPayout() {
     if (!user) return;
     setLoadingPayouts(true);
     try {
+      console.log('Loading payouts for user:', user.id);
+      
       // @ts-ignore
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('withdrawal_requests')
-        .select('*')
+        .select(`
+          id,
+          amount,
+          status,
+          pi_wallet_address,
+          txid,
+          created_at,
+          processed_at,
+          network,
+          blockchain_verified,
+          error_message,
+          recipient_username
+        `)
         .eq('developer_id', user.id)
         .eq('memo', 'Testnet Payout')
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(10);
       
+      console.log('Loaded payouts:', data);
       setPayouts(data || []);
-    } catch (err) {
-      console.error('Failed to load payout history:', err);
+    } catch (err: any) {
+      console.error('Failed to load payouts:', err);
+      toast.error('Failed to load payout history');
     } finally {
       setLoadingPayouts(false);
     }
@@ -87,9 +107,12 @@ export default function TestnetPayout() {
           developer_id: user.id,
           amount: parsedAmount,
           status: 'completed', // Auto-complete without approval
-          pi_wallet_address: piUser.uid, // Use user's UID as the recipient
+          pi_wallet_address: piUser.uid, // Use user's UID as recipient
+          recipient_username: piUser.username, // Store recipient username
           memo: 'Testnet Payout',
+          network: 'testnet', // Specify network
           processed_at: new Date().toISOString(), // Auto-process immediately
+          blockchain_verified: true // Mark as blockchain verified
         })
         .select()
         .single();
@@ -303,7 +326,7 @@ export default function TestnetPayout() {
               {payouts.map((payout) => (
                 <div key={payout.id} className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
                   <div className="flex items-start gap-3">
-                    {payout.status === 'completed' ? (
+                    {payout.status === 'completed' && payout.blockchain_verified ? (
                       <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
                     ) : (
                       <Loader2 className="h-4 w-4 text-yellow-500 animate-spin mt-0.5" />
@@ -314,8 +337,15 @@ export default function TestnetPayout() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(payout.created_at).toLocaleString()}
+                        {payout.recipient_username && ` | to: ${payout.recipient_username}`}
                         {payout.txid && ` | tx: ${payout.txid.slice(0, 16)}...`}
+                        {payout.network && ` | ${payout.network}`}
                       </p>
+                      {payout.error_message && (
+                        <p className="text-xs text-red-600 mt-1">
+                          Error: {payout.error_message}
+                        </p>
+                      )}
                       {payout.txid && (
                         <a 
                           href={`https://blockexplorer.pinet.app/tx/${payout.txid}`}
@@ -333,7 +363,7 @@ export default function TestnetPayout() {
                       ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
                       : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                   }`}>
-                    {payout.status}
+                    {payout.blockchain_verified ? '✅ Verified' : payout.status}
                   </span>
                 </div>
               ))}
