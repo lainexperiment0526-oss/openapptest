@@ -28,9 +28,14 @@ CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_network ON public.withdrawal_
 CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_blockchain_verified ON public.withdrawal_requests(blockchain_verified);
 
 -- Add constraints for data integrity
-ALTER TABLE public.withdrawal_requests 
-ADD CONSTRAINT IF NOT EXISTS check_withdrawal_network 
-CHECK (network IN ('testnet', 'mainnet'));
+DO $$
+BEGIN
+    ALTER TABLE public.withdrawal_requests 
+    ADD CONSTRAINT check_withdrawal_network 
+    CHECK (network IN ('testnet', 'mainnet'));
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Update existing records to have proper defaults
 UPDATE public.withdrawal_requests 

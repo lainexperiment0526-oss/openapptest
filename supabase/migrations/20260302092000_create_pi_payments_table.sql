@@ -30,17 +30,22 @@ CREATE INDEX IF NOT EXISTS idx_pi_payments_created_at ON public.pi_payments(crea
 CREATE INDEX IF NOT EXISTS idx_pi_payments_txid ON public.pi_payments(txid);
 
 -- Add constraints for data integrity
-ALTER TABLE public.pi_payments 
-ADD CONSTRAINT IF NOT EXISTS check_pi_payments_status 
-CHECK (status IN ('pending', 'submitted', 'completed', 'cancelled', 'failed'));
+DO $$
+BEGIN
+    ALTER TABLE public.pi_payments 
+    ADD CONSTRAINT check_pi_payments_status 
+    CHECK (status IN ('pending', 'submitted', 'completed', 'cancelled', 'failed'));
 
-ALTER TABLE public.pi_payments 
-ADD CONSTRAINT IF NOT EXISTS check_pi_payments_network 
-CHECK (network IN ('testnet', 'mainnet'));
+    ALTER TABLE public.pi_payments 
+    ADD CONSTRAINT check_pi_payments_network 
+    CHECK (network IN ('testnet', 'mainnet'));
 
-ALTER TABLE public.pi_payments 
-ADD CONSTRAINT IF NOT EXISTS check_pi_payments_amount_positive 
-CHECK (amount > 0);
+    ALTER TABLE public.pi_payments 
+    ADD CONSTRAINT check_pi_payments_amount_positive 
+    CHECK (amount > 0);
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Enable Row Level Security
 ALTER TABLE public.pi_payments ENABLE ROW LEVEL SECURITY;
