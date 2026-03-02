@@ -34,6 +34,7 @@ import BlogPostPage from "./pages/BlogPost";
 import AdminBlog from "./pages/AdminBlog";
 import A2UPayments from "./pages/A2UPayments";
 import A2UWithdrawal from "./pages/A2UWithdrawal";
+import AdminWithdrawals from "./pages/AdminWithdrawals";
 import PiWallet from "./pages/PiWallet";
 import NotFound from "./pages/NotFound";
 
@@ -89,6 +90,7 @@ const App = () => {
                   <Route path="/admin/blog" element={<AdminBlog />} />
                   <Route path="/a2u" element={<A2UPayments />} />
                   <Route path="/a2u-withdrawal" element={<A2UWithdrawal />} />
+                  <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />
                   <Route path="/wallet" element={<PiWallet />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
