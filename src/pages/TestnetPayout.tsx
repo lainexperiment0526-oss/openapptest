@@ -13,10 +13,10 @@ interface PayoutRecord {
   id: string;
   amount: number;
   status: string;
-  pi_wallet_address?: string;
-  txid?: string;
+  pi_wallet_address?: string | null;
+  txid?: string | null;
   created_at: string;
-  processed_at?: string;
+  processed_at?: string | null;
 }
 
 export default function TestnetPayout() {
@@ -35,6 +35,7 @@ export default function TestnetPayout() {
     if (!user) return;
     setLoadingPayouts(true);
     try {
+      // @ts-ignore
       const { data } = await supabase
         .from('withdrawal_requests')
         .select('*')
@@ -42,7 +43,8 @@ export default function TestnetPayout() {
         .eq('memo', 'Testnet Payout')
         .order('created_at', { ascending: false })
         .limit(5);
-      setPayouts((data || []) as any[]);
+      
+      setPayouts(data || []);
     } catch (err) {
       console.error('Failed to load payout history:', err);
     } finally {
@@ -158,13 +160,33 @@ export default function TestnetPayout() {
         </Link>
 
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full mb-4">
-            <Gift className="h-8 w-8 text-white" />
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 rounded-full mb-4 shadow-lg">
+            <Gift className="h-10 w-10 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Testnet Payouts</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-4xl font-bold text-foreground mb-3 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
+            Testnet Payouts
+          </h1>
+          <p className="text-muted-foreground text-lg">
             This is for developer payouts testing (A2U). Only 0.01 π per click is allowed.
           </p>
+        </div>
+
+        {/* Quick Navigation */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <Link 
+            to="/a2u-withdrawal" 
+            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 hover:from-blue-100 hover:to-cyan-100 transition-all duration-200"
+          >
+            <Wallet className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-700">Quick Withdraw</span>
+          </Link>
+          <Link 
+            to="/wallet" 
+            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 hover:from-purple-100 hover:to-pink-100 transition-all duration-200"
+          >
+            <Wallet className="h-4 w-4 text-purple-600" />
+            <span className="text-sm font-medium text-purple-700">Pi Wallet</span>
+          </Link>
         </div>
 
         {/* Pi Authentication Status */}
@@ -184,11 +206,17 @@ export default function TestnetPayout() {
         )}
 
         {/* Payout Button */}
-        <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 p-8 mb-8 text-center">
+        <div className="rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 p-8 mb-8 text-center shadow-xl border border-blue-200">
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-6">
+            <div className="text-white text-sm font-medium mb-2">Instant Payout</div>
+            <div className="text-white text-3xl font-bold mb-1">0.01 Test-Pi</div>
+            <div className="text-white/80 text-xs">One-click withdrawal</div>
+          </div>
+          
           <Button
             onClick={handleReceivePayout}
             disabled={processing || !isPiAuthenticated}
-            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold px-8 py-4 text-lg"
+            className="w-full bg-white text-blue-600 hover:bg-blue-50 font-bold px-8 py-4 text-lg shadow-lg hover:shadow-xl transition-all duration-200 border-2 border-blue-100"
             size="lg"
           >
             {processing ? (

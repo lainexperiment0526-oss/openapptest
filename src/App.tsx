@@ -36,6 +36,7 @@ import A2UPayments from "./pages/A2UPayments";
 import A2UWithdrawal from "./pages/A2UWithdrawal";
 import AdminWithdrawals from "./pages/AdminWithdrawals";
 import TestnetPayout from "./pages/TestnetPayout";
+import Landing from "./pages/Landing";
 import PiWallet from "./pages/PiWallet";
 import NotFound from "./pages/NotFound";
 
@@ -92,6 +93,7 @@ const App = () => {
                   <Route path="/a2u" element={<A2UPayments />} />
                   <Route path="/a2u-withdrawal" element={<A2UWithdrawal />} />
                   <Route path="/testnet-payout" element={<TestnetPayout />} />
+                  <Route path="/landing" element={<Landing />} />
                   <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />
                   <Route path="/wallet" element={<PiWallet />} />
                   <Route path="*" element={<NotFound />} />
