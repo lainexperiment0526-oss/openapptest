@@ -4,8 +4,9 @@ import PiNetwork from 'pi-backend';
 // DO NOT expose these values to public
 const apiKey = Deno.env.get('PI_API_KEY') || "ddrt2ie1cbbz3xlrjemeqc5ipmkt281jghocbs4oxsnx8k2bzi4jdswh2kh1k2r8";
 const walletPrivateSeed = Deno.env.get('PI_WALLET_PRIVATE_SEED') || "SDZCNRDROZQSM4UR6BGN7D3BOXBIZN2D2VQOV5I3IB23WVVC7IGAT2UM";
+const validationKey = Deno.env.get('PI_VALIDATION_KEY') || "aaa6e320d0e15d0a896550925d87185b0a6a615015604c31bbfbbdb7dd9b290c30fff5ae67c7f266a048562a99edda4df8b6db7c599e867200b5cbac9a95d3b1";
 
-const pi = new PiNetwork(apiKey, walletPrivateSeed);
+const pi = new PiNetwork(apiKey, walletPrivateSeed, validationKey);
 
 // Log initialization (without exposing secrets)
 console.log('Pi Network SDK initialized with API key and wallet seed');
