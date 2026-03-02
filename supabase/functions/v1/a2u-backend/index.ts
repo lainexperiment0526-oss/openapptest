@@ -25,24 +25,38 @@ serve(async (req) => {
       case 'createPayment': {
         const { recipientUid, recipientUsername, amount, memo, metadata } = data;
         
-        const paymentId = await pi.createPayment({
+        console.log(`Creating A2U payment: ${amount} π to ${recipientUid} (${recipientUsername})`);
+        
+        // Follow exact PaymentArgs structure from Pi Network docs
+        const paymentData = {
           amount: amount,
           memo: memo,
           metadata: {
             ...metadata,
-            recipientUsername: recipientUsername
+            recipientUsername: recipientUsername,
+            type: 'a2u_payment',
+            timestamp: new Date().toISOString()
           },
           uid: recipientUid
-        });
+        };
+        
+        const paymentId = await pi.createPayment(paymentData);
+        console.log(`Payment created: ${paymentId}`);
 
         const txid = await pi.submitPayment(paymentId);
-        await pi.completePayment(paymentId, txid);
+        console.log(`Payment submitted: ${txid}`);
+        
+        const completedPayment = await pi.completePayment(paymentId, txid);
+        console.log(`Payment completed: ${paymentId}`, completedPayment);
 
         return new Response(
           JSON.stringify({ 
             success: true, 
             paymentId: paymentId, 
-            txid: txid 
+            txid: txid,
+            payment: completedPayment,
+            blockchain: true,
+            network: completedPayment.network || 'Pi Testnet'
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -51,26 +65,36 @@ serve(async (req) => {
       case 'createWithdrawal': {
         const { recipientAddress, amount, memo } = data;
         
+        console.log(`Creating withdrawal: ${amount} π to ${recipientAddress}`);
+        
         // Create a payment to the wallet address (this is how withdrawals work in Pi Network)
         const paymentId = await pi.createPayment({
           amount: amount,
           memo: memo,
           metadata: {
             type: 'withdrawal',
-            recipientAddress: recipientAddress
+            recipientAddress: recipientAddress,
+            timestamp: new Date().toISOString()
           },
           // For withdrawals to wallet addresses, we use the address as the identifier
           uid: recipientAddress
         });
 
+        console.log(`Withdrawal payment created: ${paymentId}`);
+
         const txid = await pi.submitPayment(paymentId);
+        console.log(`Withdrawal submitted: ${txid}`);
+        
         await pi.completePayment(paymentId, txid);
+        console.log(`Withdrawal completed: ${paymentId}`);
 
         return new Response(
           JSON.stringify({ 
             success: true, 
             withdrawalId: paymentId, 
-            txid: txid 
+            txid: txid,
+            blockchain: true,
+            network: 'testnet'
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -100,13 +124,37 @@ serve(async (req) => {
         );
       }
 
+      case 'getIncompleteServerPayments': {
+        try {
+          const incompletePayments = await pi.getIncompleteServerPayments();
+          console.log(`Found ${incompletePayments.length} incomplete payments`);
+          
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              payments: incompletePayments 
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (error: any) {
+          console.error('Error getting incomplete payments:', error);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: error.message || 'Failed to get incomplete payments' 
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: 'Invalid action' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('A2U API error:', error);
     return new Response(
       JSON.stringify({ 

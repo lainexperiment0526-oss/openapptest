@@ -138,6 +138,36 @@ export class A2UService {
       };
     }
   }
+
+  /**
+   * Get incomplete server payments (for troubleshooting)
+   */
+  static async getIncompleteServerPayments(): Promise<{
+    success: boolean;
+    payments?: any[];
+    error?: string;
+  }> {
+    try {
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+      
+      const response = await fetch(`${baseUrl}/functions/v1/a2u-backend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'getIncompleteServerPayments'
+        }),
+      });
+
+      const result = await response.json();
+      return result;
+    } catch (error: any) {
+      console.error('Get incomplete payments error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to get incomplete payments'
+      };
+    }
+  }
 }
 
 export default A2UService;
