@@ -117,6 +117,7 @@ export function MenuDrawer() {
               <p className="px-3 text-xs font-semibold text-muted-foreground uppercase mb-2">Admin</p>
               <MenuItem icon={<Shield className="h-5 w-5" />} label="App Moderation" href="/admin" />
               <MenuItem icon={<Shield className="h-5 w-5" />} label="Ad Moderation" href="/ad-moderation" />
+              <MenuItem icon={<Send className="h-5 w-5" />} label="A2U Withdrawals" href="/a2u-withdrawal" />
               <MenuItem icon={<BookOpen className="h-5 w-5" />} label="Blog Manager" href="/admin/blog" />
             </div>
           )}

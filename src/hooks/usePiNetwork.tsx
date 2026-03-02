@@ -148,7 +148,7 @@ export function PiProvider({ children }: { children: ReactNode }) {
     // Wait a moment for cleanup
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Re-authenticate with full scopes
+    // Re-authenticate with full scopes (duplicate logic to avoid circular dependency)
     if (!window.Pi) {
       console.warn('Pi SDK not available');
       return null;
@@ -169,6 +169,12 @@ export function PiProvider({ children }: { children: ReactNode }) {
       return user;
     } catch (err: any) {
       console.error('Pi re-authentication failed:', err);
+      // Check if it's a scope error
+      if (err?.message?.includes('missing_scope') || err?.message?.includes('wallet_address')) {
+        toast.error('Wallet address scope required. Please try again in a few minutes.', {
+          duration: 5000,
+        });
+      }
       return null;
     } finally {
       setPiLoading(false);
