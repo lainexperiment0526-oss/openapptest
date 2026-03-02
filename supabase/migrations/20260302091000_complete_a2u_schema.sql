@@ -55,7 +55,12 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger to automatically verify completed transactions
-DROP TRIGGER IF EXISTS verify_withdrawal_blockchain ON public.withdrawal_requests;
+DO $$
+BEGIN
+    DROP TRIGGER verify_withdrawal_blockchain ON public.withdrawal_requests;
+EXCEPTION
+    WHEN undefined_object THEN NULL;
+END $$;
 CREATE TRIGGER verify_withdrawal_blockchain
 AFTER UPDATE ON public.withdrawal_requests
 FOR EACH ROW
@@ -63,7 +68,13 @@ WHEN (NEW.status = 'completed' AND OLD.status != 'completed')
 EXECUTE FUNCTION public.mark_blockchain_verified();
 
 -- Update RLS policies to include new columns
-DROP POLICY IF EXISTS "Users can view their own withdrawal requests";
+DO $$
+BEGIN
+    DROP POLICY "Users can view their own withdrawal requests";
+EXCEPTION
+    WHEN undefined_object THEN NULL;
+END $$;
+
 CREATE POLICY "Users can view their own withdrawal requests" ON public.withdrawal_requests
 FOR SELECT USING (auth.uid() = developer_id);
 

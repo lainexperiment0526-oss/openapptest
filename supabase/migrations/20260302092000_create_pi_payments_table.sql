@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS public.pi_payments (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   payment_id text NOT NULL UNIQUE, -- Pi Network payment identifier
-  developer_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  developer_id uuid NOT NULL, -- Developer UUID (no foreign key like other tables)
   recipient_uid text NOT NULL, -- Pi Network user UID
   recipient_username text, -- Pi Network username
   amount numeric NOT NULL, -- Payment amount
@@ -77,7 +77,12 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger for automatic timestamp updates
-DROP TRIGGER IF EXISTS update_pi_payments_updated_at ON public.pi_payments;
+DO $$
+BEGIN
+    DROP TRIGGER update_pi_payments_updated_at ON public.pi_payments;
+EXCEPTION
+    WHEN undefined_object THEN NULL;
+END $$;
 CREATE TRIGGER update_pi_payments_updated_at
 BEFORE UPDATE ON public.pi_payments
 FOR EACH ROW
